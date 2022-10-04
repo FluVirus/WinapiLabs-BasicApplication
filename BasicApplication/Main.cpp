@@ -1,5 +1,10 @@
 #pragma once
 #include <Windows.h>
+#include <tchar.h>
+#include <gdiplus.h>
+#include <windowsx.h>
+
+#pragma comment(lib, "Gdiplus.lib")
 
 enum AppMode {
 	ModeManual = 0,
@@ -19,8 +24,10 @@ int wWidth = 1200;
 int x = 0;
 int y = 0;
 
-unsigned int xSize = 80;
-unsigned int ySize = 35;
+unsigned int uSize = 80;
+
+int xChange = 5;
+int yChange = 5;
 
 unsigned int mwhOffset = 8;
 unsigned int kbOffset = 8;
@@ -33,7 +40,11 @@ PAINTSTRUCT ps;
 HPEN stdPen;
 HBRUSH stdBrush;
 
+
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	
+
+
 	switch (message) {
 	
 	case WM_SIZE: {
@@ -58,6 +69,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		}
 		case KEY_CHANGE_PICMODE: {
 			picMode = (picMode == ModeRectangle)?ModePicture:ModeRectangle;
+			break;
 		}
 		case VK_UP: {
 			if (appMode == ModeManual) y = (y + wHeight - kbOffset) % wHeight;
@@ -105,8 +117,16 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break;
 	}
 	case WM_TIMER: {
-
-
+		if (x + uSize + xChange > wWidth) 
+			xChange = -xChange;
+		else if (x - xChange < 0) 
+			xChange = -xChange;
+		if (y + uSize + yChange > wHeight) 
+			yChange = -yChange;
+		else if (y - yChange < 0) 
+			yChange = -yChange;
+		x += xChange;
+		y += yChange;
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	}
@@ -120,15 +140,17 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 			HGDIOBJ oldPen = SelectObject(hdcDoubleBuff, stdPen);
 			HGDIOBJ oldBrush = SelectObject(hdcDoubleBuff, stdBrush);
 
-			Rectangle(hdcDoubleBuff, x, y, x + xSize, y + ySize);
+			Rectangle(hdcDoubleBuff, x, y, x + uSize, y + uSize);
 
 			SelectObject(hdcDoubleBuff, oldPen);
 			SelectObject(hdcDoubleBuff, oldBrush);
 		}
 		else {
-		
+			Gdiplus::Graphics graphics(hdcDoubleBuff);
+			static Gdiplus::Bitmap stdBitmapX(L"circle.png");
+			graphics.DrawImage(&stdBitmapX, x, y, uSize, uSize);
 		}
-		BitBlt(hdc,0,0,wWidth,wHeight,hdcDoubleBuff,0,0,SRCCOPY);
+		BitBlt(hdc, 0, 0, wWidth, wHeight, hdcDoubleBuff, 0, 0, SRCCOPY);
 
 		DeleteObject(bitmap);
 		DeleteDC(hdcDoubleBuff);
@@ -172,6 +194,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	stdPen = CreatePen(PS_SOLID, 4, RGB(230, 30, 75));
 	stdBrush = CreateSolidBrush(RGB(211, 193, 36));
+	
+	ULONG_PTR gdiToken;
+	Gdiplus::GdiplusStartupInput gdiInput;
+	Gdiplus::GdiplusStartup(&gdiToken, &gdiInput, NULL);
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
@@ -183,6 +209,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	
 	DeleteObject(stdPen);
 	DeleteObject(stdBrush);
+
+	Gdiplus::GdiplusShutdown(gdiToken);
 
 	return (int)msg.wParam;
 }
