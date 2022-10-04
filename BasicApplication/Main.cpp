@@ -15,14 +15,23 @@ PicMode picMode = ModeRectangle;
 
 int wHeight = 600;
 int wWidth = 1200;
-int mwhOffset = 8;
+
+int x = 0;
+int y = 0;
+
+unsigned int xSize = 80;
+unsigned int ySize = 35;
+
+unsigned int mwhOffset = 8;
+unsigned int kbOffset = 8;
 
 const WPARAM KEY_CHANGE_APPMODE = VK_TAB;
 const WPARAM KEY_CHANGE_PICMODE = VK_SPACE;
 
 PAINTSTRUCT ps;
 
-HBITMAP hBitmap;
+HPEN stdPen;
+HBRUSH stdBrush;
 
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message) {
@@ -51,26 +60,78 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 			picMode = (picMode == ModeRectangle)?ModePicture:ModeRectangle;
 		}
 		case VK_UP: {
-		
+			if (appMode == ModeManual) y = (y + wHeight - kbOffset) % wHeight;
+			break;
 		}
 		case VK_DOWN: {
-
+			if (appMode == ModeManual) y = (y + kbOffset) % wHeight;
+			break;
 		}
 		case VK_LEFT: {
-
+			if (appMode == ModeManual) x = (x + wWidth - kbOffset) % wWidth;
+			break;
 		}
 		case VK_RIGHT: {
-
+			if (appMode == ModeManual) x = (x + kbOffset) % wWidth;
+			break;
 		}
-		default:
 
 		}
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	}
-	case WM_PAINT: {
-		HDC hdc = BeginPaint(hWnd, &ps);
+	case WM_MOUSEWHEEL: {
+		if (appMode == ModeManual) {
+			WORD loWord = LOWORD(wParam);
+			short hoWord = HIWORD(wParam);
+			if (loWord == 0x0004) { //if shift pressed
+				if (hoWord > 0) { //far from user
+					x = (x + mwhOffset) % wWidth;
+				}
+				else {  //to user
+					x = (x + wWidth - mwhOffset) % wWidth;
+				}
+			}
+			else {  //if not
+				if (hoWord > 0) {
+					y = (y + wHeight - mwhOffset) % wHeight;
+				}
+				else {
+					y = (y + mwhOffset) % wHeight;
+				}
+			}
+		}
+		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+	}
+	case WM_TIMER: {
 
+
+		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+	}
+	case WM_PAINT: {
+
+		HDC hdc = BeginPaint(hWnd, &ps);
+		HDC hdcDoubleBuff = CreateCompatibleDC(hdc);
+		HBITMAP bitmap = CreateCompatibleBitmap(hdc, wWidth, wHeight);
+		SelectObject(hdcDoubleBuff, bitmap);
+		if (picMode == ModeRectangle) {
+			HGDIOBJ oldPen = SelectObject(hdcDoubleBuff, stdPen);
+			HGDIOBJ oldBrush = SelectObject(hdcDoubleBuff, stdBrush);
+
+			Rectangle(hdcDoubleBuff, x, y, x + xSize, y + ySize);
+
+			SelectObject(hdcDoubleBuff, oldPen);
+			SelectObject(hdcDoubleBuff, oldBrush);
+		}
+		else {
+		
+		}
+		BitBlt(hdc,0,0,wWidth,wHeight,hdcDoubleBuff,0,0,SRCCOPY);
+
+		DeleteObject(bitmap);
+		DeleteDC(hdcDoubleBuff);
 		EndPaint(hWnd, &ps);
 		break;
 	}
@@ -109,6 +170,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 	hWnd = CreateWindow(L"MainWindowClass", L"Main Window", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, wWidth, wHeight, NULL, NULL, hInstance, NULL);
 
+	stdPen = CreatePen(PS_SOLID, 4, RGB(230, 30, 75));
+	stdBrush = CreateSolidBrush(RGB(211, 193, 36));
+
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
@@ -117,5 +181,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		DispatchMessage(&msg);
 	}
 	
+	DeleteObject(stdPen);
+	DeleteObject(stdBrush);
+
 	return (int)msg.wParam;
 }
