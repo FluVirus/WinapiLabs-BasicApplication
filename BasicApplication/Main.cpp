@@ -117,18 +117,38 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break;
 	}
 	case WM_TIMER: {
-		if (x + uSize + xChange > wWidth) 
+		if (x + uSize + abs(xChange) > wWidth) {
 			xChange = -xChange;
-		else if (x - xChange < 0) 
+			x = wWidth - uSize - abs(xChange);
+		}
+		if (x - abs(xChange) < 0) {
 			xChange = -xChange;
-		if (y + uSize + yChange > wHeight) 
+			x = 0;
+		}
+		if (y + uSize + abs(yChange) > wHeight) {
 			yChange = -yChange;
-		else if (y - yChange < 0) 
+			y = wHeight - uSize - abs(yChange);
+		}
+		if (y - abs(yChange) < 0) {
 			yChange = -yChange;
+			y = 0;
+		}
 		x += xChange;
 		y += yChange;
 		InvalidateRect(hWnd, NULL, TRUE);
 		break;
+	}
+	case WM_MOUSEMOVE: {
+		if (appMode == ModeManual) {
+			int oldX = x;
+			int oldY = y;
+			int newX = LOWORD(lParam);
+			int newY = HIWORD(lParam);
+			if (newX + uSize < wWidth) x = newX;
+			if (newY + uSize < wHeight) y = newY;
+			InvalidateRect(hWnd, NULL, TRUE);
+			break;
+		}
 	}
 	case WM_PAINT: {
 
